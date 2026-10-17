@@ -1,0 +1,40 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descomprimir Parkio.zip
+        run: unzip -q Parkio.zip -d build_src
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+          build-root-directory: build_src/parkio
+
+      - name: Compilar release
+        working-directory: build_src/parkio
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: SHA-1 de la llave de firma
+        working-directory: build_src/parkio
+        run: keytool -list -v -keystore app/parkio.keystore -storepass parkio-personal -alias parkio | grep -E "SHA1|SHA-1"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Parkio-APK
+          path: build_src/parkio/app/build/outputs/apk/release/*.apk
